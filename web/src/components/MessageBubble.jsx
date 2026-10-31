@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Avatar from './Avatar.jsx'
 import { assetUrl } from '../api.js'
 import { formatTime } from '../utils.js'
+import { MoreIcon } from './Icons.jsx'
 
 /**
  * メッセージ 1 件。自分のものは右・緑、相手のものは左・白。
@@ -49,11 +50,11 @@ export default function MessageBubble({ msg, me, room, readCount, showAvatar, on
               <span className="time">{time}</span>
             </div>
           )}
+          {mine && !msg.deleted && (
+            <button className="more" onClick={() => setMenu((v) => !v)} aria-label="メニュー"><MoreIcon width={16} height={16} /></button>
+          )}
           <div className="msg-body" onContextMenu={(e) => { if (mine && !msg.deleted) { e.preventDefault(); setMenu(true) } }}>
             {body}
-            {mine && !msg.deleted && (
-              <button className="more" onClick={() => setMenu((v) => !v)} aria-label="メニュー">⋯</button>
-            )}
             {menu && (
               <div className="msg-menu">
                 <button onClick={() => { setMenu(false); onUnsend(msg) }}>送信取消</button>

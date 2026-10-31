@@ -89,7 +89,7 @@ bash scripts/create_dynamodb_table.sh handson-chat ap-northeast-1
 - **コンテナ間の名前解決**: Nginx の `proxy_pass http://api:8000` と API の `DATABASE_URL=...@db:5432` は、Compose がサービス名で DNS を用意しているから通る。`localhost` ではない点を強調
 - **ポート公開の意味**: `ports:` を書いたサービスだけが EC2 の外から見える。`db` は書いていないので外から 5432 で繋げない（= 安全）
 - **設定の外出し**: 画面の API 接続先は `config.js` に外出ししてあるので、IP が変わっても再ビルド不要でファイル 1 つの差し替えで済む。「ビルド成果物と環境設定を分ける」という考え方の入口として触れる
-- **右下の zip 出力ボタンの仕組み**: 自分自身の HTML/JS/CSS をブラウザが fetch し、`config.js` を生成して zip にしている。ツール無しでも S3 に持っていけるようにするための研修用の仕掛けで、業務では CI でビルドして `aws s3 sync` する
+- **zip 書き出しボタンの仕組み**: 自分自身の HTML/JS/CSS をブラウザが fetch し、`config.js` を生成して zip にしている。ツール無しでも S3 に持っていけるようにするための研修用の仕掛けで、業務では CI でビルドして `aws s3 sync` する
 - **同一オリジンと CORS**: 手順 2 で CORS が不要だった理由（Nginx が中継していたから）と、手順 3 で必要になった理由
 - **S3 公開設定は研修用の簡易版**: 実務では CloudFront + OAC（Origin Access Control）でバケットは非公開にする
 
@@ -97,7 +97,7 @@ bash scripts/create_dynamodb_table.sh handson-chat ap-northeast-1
 
 1. `.env` を作って `POSTGRES_PASSWORD` を変え、`docker compose down -v && up -d` で反映されることを確認
 2. `web/src/stickers.js` にスタンプパックを 1 つ追加して再ビルド
-3. メッセージへのリアクション（👍 など）を API と画面に追加する
+3. メッセージへのリアクション（いいね など）を API と画面に追加する
 4. CloudFront を S3 の前に置いて https 化する（WebSocket は `wss://` にする必要があり、API 側も TLS が要る点に気づかせる）
 5. API 側も ECS / App Runner に移してみる（EC2 を無くす。WebSocket の接続一覧がメモリにあるため複数台にすると壊れることを議論する）
 

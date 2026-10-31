@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api.js'
 import Avatar from './Avatar.jsx'
+import { CloseIcon } from './Icons.jsx'
 
 export default function NewRoomDialog({ onlineIds, onClose, onCreated }) {
   const [users, setUsers] = useState([])
@@ -34,7 +35,7 @@ export default function NewRoomDialog({ onlineIds, onClose, onCreated }) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <header>
           <h2>新しいトーク</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="閉じる">✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="閉じる"><CloseIcon /></button>
         </header>
         <input className="search" placeholder="名前で検索" value={q} onChange={(e) => setQ(e.target.value)} />
         <ul className="user-list">

@@ -4,6 +4,7 @@ import Login from './components/Login.jsx'
 import { idGte, idMax } from './utils.js'
 import Sidebar from './components/Sidebar.jsx'
 import ChatRoom from './components/ChatRoom.jsx'
+import { ChatIcon } from './components/Icons.jsx'
 
 export default function App() {
   const [me, setMe] = useState(null)
@@ -156,7 +157,7 @@ export default function App() {
   // タブのタイトルに未読数
   useEffect(() => {
     const unread = rooms.reduce((n, r) => n + (r.unread_count || 0), 0)
-    document.title = unread > 0 ? `(${unread}) チャット` : 'チャット'
+    document.title = unread > 0 ? `(${unread}) Talk` : 'Talk'
   }, [rooms])
 
   // ---------- ルームを開く ----------
@@ -277,8 +278,8 @@ export default function App() {
       ) : (
         <main className="chat empty">
           <div className="empty-state">
-            <div className="empty-icon">💬</div>
-            <p>トークを選ぶか、左上の「＋」から新しいトークを始めましょう</p>
+            <div className="empty-icon"><ChatIcon width={56} height={56} strokeWidth={1.2} /></div>
+            <p>トークを選択してください</p>
           </div>
         </main>
       )}

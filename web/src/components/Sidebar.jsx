@@ -3,6 +3,7 @@ import Avatar from './Avatar.jsx'
 import NewRoomDialog from './NewRoomDialog.jsx'
 import S3Export from './S3Export.jsx'
 import SettingsDialog from './SettingsDialog.jsx'
+import { DownloadIcon, GearIcon, PlusIcon } from './Icons.jsx'
 import { formatListTime, previewOf } from '../utils.js'
 
 export default function Sidebar({ me, rooms, currentRoomId, onlineIds, wsStatus, onOpenRoom, onRoomCreated, onLogout, onUpdateMe, storage, onSettingsSaved }) {
@@ -12,6 +13,7 @@ export default function Sidebar({ me, rooms, currentRoomId, onlineIds, wsStatus,
   const [showSettings, setShowSettings] = useState(false)
   const [editStatus, setEditStatus] = useState(false)
   const [status, setStatus] = useState(me.status_message || '')
+  const shared = storage?.mode === 'dynamodb'
 
   const filtered = rooms.filter((r) => !q || r.name.includes(q) || previewOf(r.last_message).includes(q))
 
@@ -19,6 +21,8 @@ export default function Sidebar({ me, rooms, currentRoomId, onlineIds, wsStatus,
     setEditStatus(false)
     if (status !== me.status_message) await onUpdateMe({ status_message: status })
   }
+
+  const wsLabel = wsStatus === 'online' ? '接続中' : wsStatus === 'connecting' ? '再接続中' : 'オフライン'
 
   return (
     <aside className="sidebar">
@@ -36,11 +40,11 @@ export default function Sidebar({ me, rooms, currentRoomId, onlineIds, wsStatus,
             </button>
           )}
         </div>
-        <button className="icon-btn" title="新しいトーク" onClick={() => setShowNew(true)}>＋</button>
+        <button className="icon-btn" title="新しいトーク" aria-label="新しいトーク" onClick={() => setShowNew(true)}><PlusIcon /></button>
       </header>
 
       <div className="search-wrap">
-        <input className="search" placeholder="トークを検索" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="search" placeholder="検索" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 
       <ul className="room-list">
@@ -67,12 +71,11 @@ export default function Sidebar({ me, rooms, currentRoomId, onlineIds, wsStatus,
       </ul>
 
       <footer className="sidebar-footer">
-        <span className={`ws ${wsStatus}`}>{wsStatus === 'online' ? '● 接続中' : wsStatus === 'connecting' ? '○ 再接続中...' : '○ オフライン'}</span>
-        <span className={`mode-pill ${storage?.mode === 'dynamodb' ? 'shared' : 'local'}`} title={storage?.mode === 'dynamodb' ? `DynamoDB: ${storage.table}` : 'この EC2 の PostgreSQL'}>
-          {storage?.mode === 'dynamodb' ? '共有' : 'ローカル'}
-        </span>
-        <button className="link" onClick={() => setShowSettings(true)}>⚙️ 設定</button>
-        <button className="link" onClick={() => setShowS3(true)}>📦 S3 出力</button>
+        <span className={`ws ${wsStatus}`}><i className="ws-dot" />{wsLabel}</span>
+        {shared && <span className="mode-pill" title={`DynamoDB: ${storage.table}`}>共有</span>}
+        <span className="spacer" />
+        <button className="icon-btn small" title="保存先の設定" aria-label="設定" onClick={() => setShowSettings(true)}><GearIcon width={18} height={18} /></button>
+        <button className="icon-btn small" title="S3 用ファイルを書き出す" aria-label="S3 用ファイルを書き出す" onClick={() => setShowS3(true)}><DownloadIcon width={18} height={18} /></button>
         <button className="link" onClick={onLogout}>ログアウト</button>
       </footer>
 

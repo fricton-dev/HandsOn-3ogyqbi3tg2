@@ -2,7 +2,7 @@
 from . import auth, db, services
 
 DEMO_USERS = [
-    ("akari", "佐藤 あかり", "今日もがんばる☀️"),
+    ("akari", "佐藤 あかり", "午後は会議"),
     ("kenta", "鈴木 けんた", "研修中"),
     ("mio", "田中 みお", ""),
 ]

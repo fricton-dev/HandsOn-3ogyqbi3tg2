@@ -34,4 +34,4 @@ echo "  リージョン : $REGION"
 echo "  ARN        : $ARN"
 echo
 echo "研修生の EC2 に付ける IAM ロールには docs/iam_dynamodb_policy.json の内容 (Resource を上の ARN に) を追加してください。"
-echo "研修生はアプリの「⚙️ 設定」でテーブル名とリージョンを入力して切り替えます。"
+echo "研修生はアプリの「設定」でテーブル名とリージョンを入力して切り替えます。"

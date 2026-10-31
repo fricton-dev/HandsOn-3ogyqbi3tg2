@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, setToken } from '../api.js'
+import { LogoMark } from './Icons.jsx'
 
 const DEMO = [
   { username: 'akari', label: '佐藤 あかり' },
@@ -37,12 +38,14 @@ export default function Login({ storage, onLogin }) {
   return (
     <div className="login">
       <form className="login-card" onSubmit={submit}>
-        <div className="login-logo">💬</div>
-        <h1>チャット</h1>
-        <div className={`mode-badge ${shared ? 'shared' : 'local'}`}>
-          {shared ? `共有モード ・ DynamoDB: ${storage.table}` : 'ローカルモード ・ この EC2 の PostgreSQL'}
+        <div className="login-brand">
+          <LogoMark size={40} />
+          <span className="wordmark">Talk</span>
         </div>
-        {shared && <p className="hint">研修生全員で同じテーブルを使っています。初めての人は「新規登録」で自分のアカウントを作ってください。</p>}
+        <p className={`storage-line ${shared ? 'shared' : ''}`}>
+          {shared ? `共有テーブル ${storage.table} に接続中` : 'この環境の PostgreSQL に保存'}
+        </p>
+        {shared && <p className="hint">アカウントは共有テーブル側に作ります。初めての方は「新規登録」から。</p>}
         <div className="tabs">
           <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>ログイン</button>
           <button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>新規登録</button>
@@ -52,23 +55,22 @@ export default function Login({ storage, onLogin }) {
         </label>
         {mode === 'signup' && (
           <label>表示名
-            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="例: 山田 太郎" required maxLength={50} />
+            <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="山田 太郎" required maxLength={50} />
           </label>
         )}
         <label>パスワード
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={4} />
         </label>
         {error && <p className="login-error">{error}</p>}
-        <button type="submit" className="primary" disabled={busy}>{busy ? '...' : mode === 'login' ? 'ログイン' : '登録してはじめる'}</button>
+        <button type="submit" className="primary" disabled={busy}>{busy ? '...' : mode === 'login' ? 'ログイン' : '登録する'}</button>
 
         {!shared && <div className="demo">
-          <p>デモアカウントでログイン（パスワード: password）</p>
+          <p>デモアカウント（パスワード: password）</p>
           <div className="demo-buttons">
             {DEMO.map((d) => (
               <button key={d.username} type="button" onClick={(e) => submit(e, d.username)} disabled={busy}>{d.label}</button>
             ))}
           </div>
-          <p className="hint">別のブラウザ（またはシークレットウィンドウ）で別のアカウントにログインすると、既読やリアルタイム配信を試せます。</p>
         </div>}
       </form>
     </div>

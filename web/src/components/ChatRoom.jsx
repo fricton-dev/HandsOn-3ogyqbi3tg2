@@ -3,6 +3,7 @@ import { api } from '../api.js'
 import Avatar from './Avatar.jsx'
 import MessageBubble from './MessageBubble.jsx'
 import StickerPicker from './StickerPicker.jsx'
+import { BackIcon, ImageIcon, SendIcon, SmileIcon } from './Icons.jsx'
 import { dateKey, formatDateLabel } from '../utils.js'
 
 export default function ChatRoom({ me, room, messages, hasMore, typing, onlineIds, onBack, onLoadOlder, onTyping }) {
@@ -104,7 +105,7 @@ export default function ChatRoom({ me, room, messages, hasMore, typing, onlineId
   return (
     <main className="chat">
       <header className="chat-header">
-        <button className="icon-btn back" onClick={onBack} aria-label="戻る">‹</button>
+        <button className="icon-btn back" onClick={onBack} aria-label="戻る"><BackIcon width={22} height={22} /></button>
         <Avatar name={room.name} color={room.avatar_color} size={40} online={!!online} group={room.type === 'group'} />
         <div className="chat-title">
           <div className="name">{room.name}{room.type === 'group' && <span className="count">{room.members.length}</span>}</div>
@@ -132,11 +133,11 @@ export default function ChatRoom({ me, room, messages, hasMore, typing, onlineId
 
       <footer className="composer">
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickImage} />
-        <button className="icon-btn" title="画像を送る" onClick={() => fileRef.current?.click()}>🖼️</button>
-        <button className={`icon-btn ${showStickers ? 'active' : ''}`} title="スタンプ" onClick={() => setShowStickers((v) => !v)}>😊</button>
-        <textarea ref={textRef} rows={1} placeholder="メッセージを入力（Enter で送信 / Shift+Enter で改行）"
+        <button className="icon-btn" title="画像を送る" onClick={() => fileRef.current?.click()}><ImageIcon width={22} height={22} /></button>
+        <button className={`icon-btn ${showStickers ? 'active' : ''}`} title="スタンプ" onClick={() => setShowStickers((v) => !v)}><SmileIcon width={22} height={22} /></button>
+        <textarea ref={textRef} rows={1} placeholder="メッセージを入力" title="Enter で送信、Shift+Enter で改行"
           value={text} onChange={onChangeText} onKeyDown={onKeyDown} />
-        <button className="send" onClick={sendText} disabled={!text.trim()} aria-label="送信">➤</button>
+        <button className="send" onClick={sendText} disabled={!text.trim()} aria-label="送信"><SendIcon width={18} height={18} /></button>
       </footer>
 
       {lightbox && (

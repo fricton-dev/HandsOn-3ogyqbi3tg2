@@ -27,7 +27,7 @@ AWS マネジメントコンソール → EC2 → 「インスタンスを起動
 | HTTP | 80 | 0.0.0.0/0 | 画面（Nginx） |
 | カスタム TCP | 8000 | 0.0.0.0/0 | API（後半の S3 連携で使う） |
 
-> 💡 8000 番は後半まで不要ですが、あとで追加し忘れる人が多いので最初に開けておきます。
+> 8000 番は後半まで不要ですが、あとで追加し忘れる人が多いので最初に開けておきます。
 
 ### （後半で使う）IAM ロールの付与
 
@@ -44,7 +44,7 @@ ssh -i ~/Downloads/<キーペア名>.pem ubuntu@<パブリック IP>
 
 Windows の場合は PowerShell か、EC2 コンソールの「接続」→「EC2 Instance Connect」でも構いません。
 
-> ⚠️ ユーザー名は **`ubuntu`** です（Amazon Linux の `ec2-user` ではありません）。
+> 注意: ユーザー名は **`ubuntu`** です（Amazon Linux の `ec2-user` ではありません）。
 
 ## 1-3. 教材を取得する
 
@@ -101,9 +101,9 @@ curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o aw
 unzip -q awscliv2.zip && sudo ./aws/install && rm -rf aws awscliv2.zip
 ```
 
-> 💡 Ubuntu の標準リポジトリにある `docker.io` パッケージでも動きますが、バージョンが古く Compose プラグインが別扱いになるため、公式リポジトリを使います。
+> Ubuntu の標準リポジトリにある `docker.io` パッケージでも動きますが、バージョンが古く Compose プラグインが別扱いになるため、公式リポジトリを使います。
 
-## チェックポイント ✅
+## チェックポイント
 
 - [ ] `ssh` で EC2 に入れた
 - [ ] `docker ps` が sudo なしで動く
