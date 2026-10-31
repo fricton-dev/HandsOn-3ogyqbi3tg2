@@ -1,0 +1,53 @@
+# 研修用サンプルアプリ: PostgreSQL + FastAPI(API) + Nginx(Web)
+#
+#   ブラウザ ──:80──> web(Nginx) ──/api/*──> api(FastAPI:8000) ──> db(PostgreSQL:5432)
+#
+# 起動:   docker compose up -d --build
+# 停止:   docker compose down          (DBデータは残る)
+# 全削除: docker compose down -v       (DBデータも消える)
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: training-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app_password}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # 初回起動時のみ実行される初期化SQL
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-appdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    container_name: training-api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app_password}@db:5432/${POSTGRES_DB:-appdb}
+      # S3 からアクセスする場合に必要。カンマ区切りで複数指定可。研修用に既定は "*"
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    ports:
+      # S3 ホスティング版の画面から直接 API を叩くために外へも公開する
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    container_name: training-web
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db-data:
