@@ -15,7 +15,7 @@
 - 研修生ごとの IAM ユーザー（EC2 / S3 / IAM ロールのパススルー権限）
 - EC2 用 IAM ロール `training-ec2-s3-role`（`AmazonS3FullAccess`）を先に作っておくと 3-2 の権限エラーがなくなる
 - 教材の配布方法（Git リポジトリ or zip）。Git の場合は `git clone` の URL を資料に書く
-- 動作確認済みのリージョンとインスタンスタイプ（`ap-northeast-1` / `t3.small`）
+- 動作確認済みのリージョン・AMI・インスタンスタイプ（`ap-northeast-1` / Ubuntu Server 24.04 LTS / `t3.small`）
 
 ## つまずきやすいポイントと対処
 
@@ -23,10 +23,11 @@
 
 | 症状 | 原因 | 対処 |
 |---|---|---|
-| `Permission denied (publickey)` | `.pem` の権限 / ユーザー名違い | `chmod 400`、ユーザーは `ec2-user` |
+| `Permission denied (publickey)` | `.pem` の権限 / ユーザー名違い | `chmod 400`、ユーザーは `ubuntu`（`ec2-user` ではない） |
 | SSH タイムアウト | SG の 22 番が「マイ IP」で、受講者の IP が変わった | SG を 0.0.0.0/0 に一時変更、または Instance Connect |
 | `docker: permission denied` | 再ログインしていない | `exit` → 再接続。急ぐなら `newgrp docker` |
-| Compose の curl が失敗 | GitHub API のレート制限 | スクリプトは予備バージョンにフォールバックする。手動で `releases/latest/download/...` を使ってもよい |
+| `apt-get` が `Could not get lock` で止まる | 起動直後の自動アップデート (unattended-upgrades) が走っている | 1〜2 分待ってから再実行 |
+| `aws: command not found` | Ubuntu には AWS CLI が入っていない | `setup_ec2.sh` が入れる。再ログインしていないなら `exit` → 再接続 |
 
 ### 手順 2
 

@@ -2,7 +2,7 @@
 
 ## ゴール
 
-- EC2 インスタンス（Amazon Linux 2023）を 1 台作成し、SSH で接続できる
+- EC2 インスタンス（Ubuntu Server 24.04 LTS）を 1 台作成し、SSH で接続できる
 - Docker と Docker Compose が使える状態になっている
 
 ## 1-1. EC2 インスタンスを作成する
@@ -12,7 +12,7 @@ AWS マネジメントコンソール → EC2 → 「インスタンスを起動
 | 項目 | 設定値 |
 |---|---|
 | 名前 | `training-<自分の名前>` |
-| AMI | **Amazon Linux 2023** (x86_64 または arm64 どちらでも可) |
+| AMI | **Ubuntu Server 24.04 LTS** (x86_64 または arm64 どちらでも可) |
 | インスタンスタイプ | `t3.small` 推奨（`t3.micro` でも動くが React のビルドが遅い） |
 | キーペア | 新規作成してダウンロード（紛失注意） |
 | ネットワーク | パブリック IP の自動割り当て: **有効** |
@@ -39,15 +39,17 @@ AWS マネジメントコンソール → EC2 → 「インスタンスを起動
 
 ```bash
 chmod 400 ~/Downloads/<キーペア名>.pem
-ssh -i ~/Downloads/<キーペア名>.pem ec2-user@<パブリック IP>
+ssh -i ~/Downloads/<キーペア名>.pem ubuntu@<パブリック IP>
 ```
 
 Windows の場合は PowerShell か、EC2 コンソールの「接続」→「EC2 Instance Connect」でも構いません。
 
+> ⚠️ ユーザー名は **`ubuntu`** です（Amazon Linux の `ec2-user` ではありません）。
+
 ## 1-3. 教材を取得する
 
 ```bash
-sudo dnf install -y git
+sudo apt-get update && sudo apt-get install -y git
 git clone https://github.com/fricton-dev/HandsOn-3ogyqbi3tg2.git
 cd HandsOn-3ogyqbi3tg2
 ```
@@ -58,6 +60,9 @@ cd HandsOn-3ogyqbi3tg2
 bash scripts/setup_ec2.sh
 ```
 
+Docker 本体、Docker Compose プラグイン、AWS CLI（後半の S3 アップロードで使う）をまとめて入れます。
+3〜5 分かかります。
+
 実行が終わったら、**いちど `exit` で切断して、再度 SSH 接続**してください。
 `sudo` なしで `docker` が使えるようになるにはこの再ログインが必要です。
 
@@ -66,23 +71,37 @@ bash scripts/setup_ec2.sh
 ```bash
 docker --version          # Docker version 2x.x.x
 docker compose version    # Docker Compose version v2.x.x
+aws --version             # aws-cli/2.x.x
 docker ps                 # エラーが出ずに空の表が出れば OK
 ```
 
 ## 手動で入れる場合（スクリプトの中身）
 
-```bash
-sudo dnf update -y
-sudo dnf install -y docker git
-sudo systemctl enable --now docker
-sudo usermod -aG docker ec2-user
+Docker 公式ドキュメントの Ubuntu 向け手順と同じです。
 
-# Compose プラグイン (AL2023 の標準リポジトリには無いので手動配置)
-sudo mkdir -p /usr/local/lib/docker/cli-plugins
-sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
-     -o /usr/local/lib/docker/cli-plugins/docker-compose
-sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+```bash
+# Docker 公式リポジトリの登録
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl git
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Docker と Compose プラグイン
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker ubuntu
+
+# AWS CLI v2
+curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o awscliv2.zip
+unzip -q awscliv2.zip && sudo ./aws/install && rm -rf aws awscliv2.zip
 ```
+
+> 💡 Ubuntu の標準リポジトリにある `docker.io` パッケージでも動きますが、バージョンが古く Compose プラグインが別扱いになるため、公式リポジトリを使います。
 
 ## チェックポイント ✅
 

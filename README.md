@@ -1,6 +1,6 @@
 # AWS 研修サンプルアプリ（EC2 + Docker Compose + S3）
 
-EC2 上で Docker Compose を使って 3 層アプリを起動し、ブラウザから表示できることを確認する研修用の教材です。
+EC2（Ubuntu）上で Docker Compose を使って 3 層アプリを起動し、ブラウザから表示できることを確認する研修用の教材です。
 後半では、画面（React のビルド成果物）を S3 の静的ウェブサイトホスティングに載せ、EC2 上の API と連携させます。
 
 ## 構成
@@ -38,7 +38,7 @@ EC2 上で Docker Compose を使って 3 層アプリを起動し、ブラウザ
 │   └── src/                # App.jsx, S3Export.jsx (右下の zip 出力パネル)
 ├── db/init/01_schema.sql   # テーブル作成と初期データ
 ├── scripts/
-│   ├── setup_ec2.sh        # Amazon Linux 2023 に Docker を入れる
+│   ├── setup_ec2.sh        # Ubuntu に Docker / Compose / AWS CLI を入れる
 │   ├── build_for_s3.sh     # S3 用ファイルを web/dist に出力 (起動中コンテナから取り出す)
 │   └── deploy_to_s3.sh     # バケット作成・公開設定・アップロード
 └── docs/
