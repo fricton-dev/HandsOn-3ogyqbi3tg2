@@ -39,3 +39,14 @@ export function previewOf(msg) {
   if (msg.type === 'image') return '[画像]'
   return msg.content
 }
+
+/** ID の大小比較。数値 (PostgreSQL) でも ULID 文字列 (DynamoDB) でも時系列順に比較できる */
+export function idGte(a, b) {
+  if (a === undefined || a === null || a === '') return false
+  if (b === undefined || b === null || b === '') return true
+  if (typeof a === 'number' && typeof b === 'number') return a >= b
+  return String(a) >= String(b)
+}
+export function idMax(a, b) {
+  return idGte(a, b) ? a : b
+}

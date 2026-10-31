@@ -1,14 +1,12 @@
-"""認証: パスワードハッシュ(PBKDF2) とセッショントークン。"""
+"""認証: パスワードハッシュ(PBKDF2) と、トークンからユーザーを特定する依存関係。"""
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timedelta, timezone
 
 from fastapi import Header, HTTPException
 
-from . import db
+from . import settings
 
-SESSION_DAYS = 30
 _ITER = 200_000
 
 
@@ -27,43 +25,24 @@ def verify_password(password: str, stored: str) -> bool:
     return hmac.compare_digest(calc, digest)
 
 
-def create_session(c, user_id: int) -> str:
-    token = secrets.token_urlsafe(32)
-    expires = datetime.now(timezone.utc) + timedelta(days=SESSION_DAYS)
-    c.execute(
-        "INSERT INTO sessions (token, user_id, expires_at) VALUES (%s, %s, %s)",
-        (token, user_id, expires),
-    )
-    return token
-
-
-def delete_session(c, token: str) -> None:
-    c.execute("DELETE FROM sessions WHERE token = %s", (token,))
-
-
-def user_from_token(token: str | None) -> dict | None:
-    if not token:
-        return None
-    with db.conn() as c:
-        row = c.execute(
-            """SELECT u.id, u.username, u.display_name, u.avatar_color, u.status_message
-               FROM sessions s JOIN users u ON u.id = s.user_id
-               WHERE s.token = %s AND s.expires_at > NOW()""",
-            (token,),
-        ).fetchone()
-    return dict(row) if row else None
-
-
 def bearer_token(authorization: str | None) -> str | None:
     if authorization and authorization.lower().startswith("bearer "):
         return authorization[7:].strip()
     return None
 
 
+def user_from_token(token: str | None) -> dict | None:
+    try:
+        return settings.active().user_from_token(token)
+    except Exception:  # noqa: BLE001  (共有ストレージに繋がらない等)
+        return None
+
+
 def current_user(authorization: str | None = Header(default=None)) -> dict:
     """FastAPI の依存関係。Authorization: Bearer <token> からユーザーを特定する。"""
-    user = user_from_token(bearer_token(authorization))
+    token = bearer_token(authorization)
+    user = user_from_token(token)
     if not user:
         raise HTTPException(status_code=401, detail="ログインが必要です")
-    user["_token"] = bearer_token(authorization)
+    user["_token"] = token
     return user

@@ -23,6 +23,18 @@ EC2（Ubuntu）上で Docker Compose を使って 3 層のチャットアプリ�
 | ステータスメッセージ | 自分の名前の下をクリックして編集 |
 | レスポンシブ | スマホ幅では一覧とトークを切り替える 1 カラム表示 |
 | S3 用ファイル出力 | サイドバー下部のボタンから、API 接続先を書き込んだ zip をダウンロード |
+| **保存先の切り替え** | ⚙️ 設定で「ローカル（PostgreSQL）」と「共有（DynamoDB）」を切り替え。共有では研修生全員で同じトークが使える |
+
+## 2 つの保存先モード
+
+| モード | 保存先 | 用途 | リアルタイム配信 |
+|---|---|---|---|
+| ローカル（既定） | 自分の EC2 の PostgreSQL | 研修前半。デモアカウント付き | WebSocket |
+| 共有 | 講師が用意した DynamoDB テーブル（全員共通） | 研修後半。全員でチャット | 同じ EC2 内は WebSocket、他の EC2 の書き込みは 2.5 秒ごとのポーリング |
+
+切り替えはアプリの「⚙️ 設定」から行い、設定は自分の EC2 の PostgreSQL（`app_settings`）に保存されます。
+講師は [scripts/create_dynamodb_table.sh](scripts/create_dynamodb_table.sh) でテーブルを作り、研修生の EC2 の IAM ロールに [docs/iam_dynamodb_policy.json](docs/iam_dynamodb_policy.json) を付けます。
+テーブル設計は [docs/04_shared_chat_dynamodb.md](docs/04_shared_chat_dynamodb.md) を参照してください。
 
 ## 構成
 
@@ -55,7 +67,13 @@ EC2（Ubuntu）上で Docker Compose を使って 3 層のチャットアプリ�
 │       ├── main.py         # アプリ本体・WebSocket エンドポイント
 │       ├── routes_auth.py  # ログイン・登録・プロフィール・ユーザー検索
 │       ├── routes_rooms.py # ルーム・メッセージ・既読・送信取消・画像
-│       ├── services.py     # 共通クエリと JSON 変換
+│       ├── routes_settings.py  # 保存先の参照・接続テスト・切り替え
+│       ├── settings.py     # 設定の保存と有効なストレージの提供
+│       ├── storage_base.py     # ストレージ層のインターフェース
+│       ├── storage_postgres.py # ローカル実装 (PostgreSQL)
+│       ├── storage_dynamodb.py # 共有実装 (DynamoDB シングルテーブル)
+│       ├── ids.py          # ULID
+│       ├── services.py     # PostgreSQL 用の共通クエリと JSON 変換
 │       ├── ws.py           # WebSocket 接続管理
 │       ├── auth.py         # パスワードハッシュとセッション
 │       ├── db.py           # 接続プール
@@ -73,11 +91,14 @@ EC2（Ubuntu）上で Docker Compose を使って 3 層のチャットアプリ�
 ├── scripts/
 │   ├── setup_ec2.sh        # Ubuntu に Docker / Compose / AWS CLI を入れる
 │   ├── build_for_s3.sh     # S3 用ファイルを web/dist に出力 (起動中コンテナから取り出す)
+│   ├── create_dynamodb_table.sh  # 講師用: 共有テーブルの作成
 │   └── deploy_to_s3.sh     # バケット作成・公開設定・アップロード
 └── docs/
     ├── 01_ec2_setup.md     # 研修生向け: EC2 作成 〜 Docker インストール
     ├── 02_run_on_ec2.md    # 研修生向け: アプリ起動 〜 ブラウザ確認
     ├── 03_s3_hosting.md    # 研修生向け: S3 ホスティング
+    ├── 04_shared_chat_dynamodb.md  # 研修生向け: 共有 DynamoDB に切り替えて全員でチャット
+    ├── iam_dynamodb_policy.json    # EC2 ロールに付ける DynamoDB 権限
     └── instructor_notes.md # 講師向け: チェックポイントとつまずきやすい点
 ```
 
@@ -134,11 +155,14 @@ API の接続先は `config.js` で**実行時**に決まるので、S3 用に�
 | GET | `/api/users?q=` | ユーザー検索 |
 | GET / POST | `/api/rooms` | 自分のルーム一覧 / ルーム作成 `{type, member_ids, name}` |
 | GET | `/api/rooms/{id}` | ルーム詳細（メンバーごとの既読位置を含む） |
-| GET | `/api/rooms/{id}/messages?before=&limit=` | メッセージ取得（古い方へページング） |
+| GET | `/api/rooms/{id}/messages?before=&after=&limit=` | メッセージ取得（`before` で古い方へ、`after` で新着のみ） |
 | POST | `/api/rooms/{id}/messages` | 送信 `{type: "text"\|"sticker", content}` |
 | POST | `/api/rooms/{id}/images` | 画像送信（multipart `file`） |
 | POST | `/api/rooms/{id}/read` | 既読位置の更新 `{message_id}` |
-| DELETE | `/api/messages/{id}` | 送信取消 |
+| DELETE | `/api/rooms/{id}/messages/{mid}` | 送信取消 |
+| GET | `/api/settings/public` | 現在の保存先モード（ログイン不要） |
+| GET / PUT | `/api/settings` | 保存先の設定取得・保存（保存時に接続確認） |
+| POST | `/api/settings/test` | 保存せずに接続テスト |
 | WS | `/api/ws?token=` | イベント配信: `message` `message_deleted` `read` `typing` `presence` `room_created` |
 | GET | `/api/health`, `/api/info` | 生存確認、DB バージョン、接続中ユーザー数 |
 
@@ -146,7 +170,8 @@ API の接続先は `config.js` で**実行時**に決まるので、S3 用に�
 
 ### 既読の仕組み
 
-`room_members.last_read_message_id` に「このメッセージ ID まで読んだ」を人ごとに持ちます。
+「このメッセージ ID まで読んだ」を人ごとに 1 つ持ちます（PostgreSQL は `room_members.last_read_message_id`、DynamoDB は `MEMBER#` 項目の同名属性）。
+ID は PostgreSQL では連番、DynamoDB では ULID で、どちらも大小比較が時系列順になります。
 自分の吹き出しの既読人数は「自分以外のメンバーのうち、`last_read_message_id >= そのメッセージ ID` の人数」です。
 ルームを開いたとき・開いている間に新着が来たときに `POST /read` を送り、サーバーが WebSocket でメンバー全員に `read` イベントを配ります。
 

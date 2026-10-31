@@ -1,14 +1,19 @@
 """LINE 風チャット API (FastAPI + WebSocket)
 
+ストレージはローカル (PostgreSQL) と共有 (DynamoDB) を設定画面で切り替えられる。
+WebSocket による即時配信は同じ API に接続しているブラウザ同士で動き、
+共有モードでは他の EC2 からの書き込みを画面側のポーリングで拾う。
+
 REST:
   POST /api/auth/signup, /api/auth/login, /api/auth/logout
   GET  /api/me, PATCH /api/me, GET /api/users?q=
   GET  /api/rooms, POST /api/rooms, GET /api/rooms/{id}
-  GET  /api/rooms/{id}/messages?before=&limit=
+  GET  /api/rooms/{id}/messages?before=&after=&limit=
   POST /api/rooms/{id}/messages   (text / sticker)
   POST /api/rooms/{id}/images     (multipart 画像)
   POST /api/rooms/{id}/read       (既読位置の更新)
-  DELETE /api/messages/{id}       (送信取消)
+  DELETE /api/rooms/{id}/messages/{mid}  (送信取消)
+  GET  /api/settings/public, GET/PUT /api/settings, POST /api/settings/test
   GET  /api/health, /api/info
 WebSocket:
   /api/ws?token=...   サーバ → クライアント: message / message_deleted / read / typing / presence / room_created
@@ -24,7 +29,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, db, routes_auth, routes_rooms, seed, services
+from . import auth, db, routes_auth, routes_rooms, routes_settings, settings
 from .ws import manager
 
 UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/app/uploads")
@@ -33,14 +38,16 @@ UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/app/uploads")
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     db.open_pool()
-    seed.seed_if_empty()
+    settings.ensure_table()
+    from .storage_postgres import PostgresStorage
+    PostgresStorage().seed_demo()          # ローカル DB にだけデモデータを入れる
     manager.loop = asyncio.get_running_loop()
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     yield
     db.close_pool()
 
 
-app = FastAPI(title="Chat API", version="2.0.0", lifespan=lifespan)
+app = FastAPI(title="Chat API", version="3.0.0", lifespan=lifespan)
 
 _origins_env = os.environ.get("CORS_ORIGINS", "*")
 _origins = ["*"] if _origins_env.strip() == "*" else [o.strip() for o in _origins_env.split(",") if o.strip()]
@@ -48,6 +55,7 @@ app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_methods=["*"], 
 
 app.include_router(routes_auth.router)
 app.include_router(routes_rooms.router)
+app.include_router(routes_settings.router)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR, check_dir=False), name="uploads")
 
 
@@ -58,21 +66,25 @@ def health():
 
 @app.get("/api/info")
 def info():
+    out = {"api": "FastAPI", "api_hostname": socket.gethostname(), "online_users": len(manager.online_ids())}
     try:
         with db.conn() as c:
-            row = c.execute("SELECT version()").fetchone()
-            db_version, db_ok = row["version"], True
+            out["db_version"] = c.execute("SELECT version()").fetchone()["version"]
+            out["db_ok"] = True
     except Exception as e:  # noqa: BLE001
-        db_version, db_ok = f"接続失敗: {e}", False
-    return {"api": "FastAPI", "api_hostname": socket.gethostname(), "db_ok": db_ok,
-            "db_version": db_version, "online_users": len(manager.online_ids())}
+        out["db_version"], out["db_ok"] = f"接続失敗: {e}", False
+    try:
+        out["storage"] = settings.active().info()
+    except Exception as e:  # noqa: BLE001
+        out["storage"] = {"error": str(e)}
+    return out
 
 
-def _typing_targets(room_id: int, user_id: int) -> list[int]:
-    with db.conn() as c:
-        if not services.is_member(c, room_id, user_id):
-            return []
-        return [m for m in services.room_member_ids(c, room_id) if m != user_id]
+def _typing_targets(room_id: str, user_id) -> list:
+    st = settings.active()
+    if not st.is_member(room_id, user_id):
+        return []
+    return [m for m in st.room_member_ids(room_id) if m != user_id]
 
 
 @app.websocket("/api/ws")
@@ -88,7 +100,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=""
             data = await websocket.receive_json()
             kind = data.get("type")
             if kind == "typing":
-                room_id = int(data.get("room_id", 0))
+                room_id = str(data.get("room_id", ""))
                 targets = await run_in_threadpool(_typing_targets, room_id, user["id"])
                 await manager.send_to_users(targets, {
                     "type": "typing", "room_id": room_id,

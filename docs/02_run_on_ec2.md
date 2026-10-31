@@ -94,6 +94,11 @@ http://<EC2 のパブリック IP>:8000/docs
 | `permission denied while trying to connect to the Docker daemon` | 手順 1 の再ログインをしていない。`exit` して再接続 |
 | `port is already allocated` | 他のコンテナが同じポートを使っている。`docker ps -a` で確認し `docker rm -f <名前>` |
 
+## 次のステップ
+
+- 手順 3: 画面を S3 に載せる → [03_s3_hosting.md](03_s3_hosting.md)
+- 手順 4: 研修生全員でチャットする（共有 DynamoDB に切り替え） → [04_shared_chat_dynamodb.md](04_shared_chat_dynamodb.md)
+
 ## 停止と片付け
 
 ```bash

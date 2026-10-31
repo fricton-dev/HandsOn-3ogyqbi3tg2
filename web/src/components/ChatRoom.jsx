@@ -84,7 +84,7 @@ export default function ChatRoom({ me, room, messages, hasMore, typing, onlineId
 
   async function unsend(msg) {
     if (!window.confirm('このメッセージの送信を取り消しますか？\n（相手の画面からも消えます）')) return
-    try { await api.unsend(msg.id) } catch (e) { setError(e.message) }
+    try { await api.unsend(room.id, msg.id) } catch (e) { setError(e.message) }
   }
 
   const online = room.type === 'direct' ? onlineIds.includes(room.partner_id) : null

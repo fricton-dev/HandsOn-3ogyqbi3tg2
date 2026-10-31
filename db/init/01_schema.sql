@@ -45,3 +45,9 @@ CREATE TABLE messages (
 );
 CREATE INDEX idx_messages_room ON messages (room_id, id);
 CREATE INDEX idx_sessions_user ON sessions (user_id);
+
+-- アプリ設定 (ストレージの切り替え先など)。API 起動時にも CREATE IF NOT EXISTS する
+CREATE TABLE IF NOT EXISTS app_settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);

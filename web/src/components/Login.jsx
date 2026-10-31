@@ -7,7 +7,8 @@ const DEMO = [
   { username: 'mio', label: '田中 みお' },
 ]
 
-export default function Login({ onLogin }) {
+export default function Login({ storage, onLogin }) {
+  const shared = storage?.mode === 'dynamodb'
   const [mode, setMode] = useState('login')
   const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -38,6 +39,10 @@ export default function Login({ onLogin }) {
       <form className="login-card" onSubmit={submit}>
         <div className="login-logo">💬</div>
         <h1>チャット</h1>
+        <div className={`mode-badge ${shared ? 'shared' : 'local'}`}>
+          {shared ? `共有モード ・ DynamoDB: ${storage.table}` : 'ローカルモード ・ この EC2 の PostgreSQL'}
+        </div>
+        {shared && <p className="hint">研修生全員で同じテーブルを使っています。初めての人は「新規登録」で自分のアカウントを作ってください。</p>}
         <div className="tabs">
           <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>ログイン</button>
           <button type="button" className={mode === 'signup' ? 'active' : ''} onClick={() => setMode('signup')}>新規登録</button>
@@ -56,7 +61,7 @@ export default function Login({ onLogin }) {
         {error && <p className="login-error">{error}</p>}
         <button type="submit" className="primary" disabled={busy}>{busy ? '...' : mode === 'login' ? 'ログイン' : '登録してはじめる'}</button>
 
-        <div className="demo">
+        {!shared && <div className="demo">
           <p>デモアカウントでログイン（パスワード: password）</p>
           <div className="demo-buttons">
             {DEMO.map((d) => (
@@ -64,7 +69,7 @@ export default function Login({ onLogin }) {
             ))}
           </div>
           <p className="hint">別のブラウザ（またはシークレットウィンドウ）で別のアカウントにログインすると、既読やリアルタイム配信を試せます。</p>
-        </div>
+        </div>}
       </form>
     </div>
   )

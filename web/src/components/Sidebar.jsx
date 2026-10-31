@@ -2,12 +2,14 @@ import { useState } from 'react'
 import Avatar from './Avatar.jsx'
 import NewRoomDialog from './NewRoomDialog.jsx'
 import S3Export from './S3Export.jsx'
+import SettingsDialog from './SettingsDialog.jsx'
 import { formatListTime, previewOf } from '../utils.js'
 
-export default function Sidebar({ me, rooms, currentRoomId, onlineIds, wsStatus, onOpenRoom, onRoomCreated, onLogout, onUpdateMe }) {
+export default function Sidebar({ me, rooms, currentRoomId, onlineIds, wsStatus, onOpenRoom, onRoomCreated, onLogout, onUpdateMe, storage, onSettingsSaved }) {
   const [q, setQ] = useState('')
   const [showNew, setShowNew] = useState(false)
   const [showS3, setShowS3] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [editStatus, setEditStatus] = useState(false)
   const [status, setStatus] = useState(me.status_message || '')
 
@@ -66,12 +68,17 @@ export default function Sidebar({ me, rooms, currentRoomId, onlineIds, wsStatus,
 
       <footer className="sidebar-footer">
         <span className={`ws ${wsStatus}`}>{wsStatus === 'online' ? '● 接続中' : wsStatus === 'connecting' ? '○ 再接続中...' : '○ オフライン'}</span>
-        <button className="link" onClick={() => setShowS3(true)}>📦 S3 用ファイルを出力</button>
+        <span className={`mode-pill ${storage?.mode === 'dynamodb' ? 'shared' : 'local'}`} title={storage?.mode === 'dynamodb' ? `DynamoDB: ${storage.table}` : 'この EC2 の PostgreSQL'}>
+          {storage?.mode === 'dynamodb' ? '共有' : 'ローカル'}
+        </span>
+        <button className="link" onClick={() => setShowSettings(true)}>⚙️ 設定</button>
+        <button className="link" onClick={() => setShowS3(true)}>📦 S3 出力</button>
         <button className="link" onClick={onLogout}>ログアウト</button>
       </footer>
 
       {showNew && <NewRoomDialog onlineIds={onlineIds} onClose={() => setShowNew(false)} onCreated={(room) => { setShowNew(false); onRoomCreated(room) }} />}
       {showS3 && <S3Export onClose={() => setShowS3(false)} />}
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} onSaved={onSettingsSaved} />}
     </aside>
   )
 }

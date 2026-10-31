@@ -43,12 +43,17 @@ export const api = {
   rooms: () => request('/api/rooms'),
   room: (id) => request(`/api/rooms/${id}`),
   createRoom: (type, member_ids, name) => request('/api/rooms', { method: 'POST', body: { type, member_ids, name } }),
-  messages: (roomId, before) => request(`/api/rooms/${roomId}/messages?limit=50${before ? `&before=${before}` : ''}`),
+  messages: (roomId, { before, after } = {}) =>
+    request(`/api/rooms/${roomId}/messages?limit=50${before ? `&before=${encodeURIComponent(before)}` : ''}${after ? `&after=${encodeURIComponent(after)}` : ''}`),
   sendMessage: (roomId, type, content) => request(`/api/rooms/${roomId}/messages`, { method: 'POST', body: { type, content } }),
   uploadImage: (roomId, file) => { const fd = new FormData(); fd.append('file', file); return request(`/api/rooms/${roomId}/images`, { method: 'POST', formData: fd }) },
   markRead: (roomId, messageId) => request(`/api/rooms/${roomId}/read`, { method: 'POST', body: { message_id: messageId } }),
-  unsend: (messageId) => request(`/api/messages/${messageId}`, { method: 'DELETE' }),
+  unsend: (roomId, messageId) => request(`/api/rooms/${roomId}/messages/${messageId}`, { method: 'DELETE' }),
   info: () => request('/api/info'),
+  publicSettings: () => request('/api/settings/public'),
+  settings: () => request('/api/settings'),
+  testSettings: (body) => request('/api/settings/test', { method: 'POST', body }),
+  saveSettings: (body) => request('/api/settings', { method: 'PUT', body }),
 }
 
 /** WebSocket 接続。切れたら自動再接続する。 */
