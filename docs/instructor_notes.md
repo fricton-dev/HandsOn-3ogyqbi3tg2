@@ -5,7 +5,7 @@
 | 時間 | 内容 | チェックポイント |
 |---|---|---|
 | 0:00–0:40 | EC2 作成、SSH、Docker インストール | `docker compose version` が出る |
-| 0:40–1:30 | `docker compose up`、ブラウザ確認、ログや DB を覗く | 画面で API / DB が OK、メッセージ追加が永続化 |
+| 0:40–1:30 | `docker compose up`、2 アカウントでログインして既読・スタンプ・画像を試す、ログや DB を覗く | 2 ブラウザ間でリアルタイムに届き既読が付く |
 | 1:30–1:45 | 休憩 / 進捗合わせ | |
 | 1:45–2:40 | S3 ホスティング、CORS の説明、動作確認 | S3 の URL で画面が出て API も OK |
 | 2:40–3:00 | 片付け、振り返り | リソース削除 |
@@ -35,7 +35,10 @@
 |---|---|---|
 | ビルドが異常に遅い / OOM | `t3.micro`（1 GiB）で React ビルド | `t3.small` 以上を推奨。micro なら swap を作る |
 | ブラウザで開けない | `https://` に自動補正されている | アドレスバーで `http://` を明示 |
-| 画面は出るが API: NG | api コンテナが落ちている | `docker compose logs api`。多くは DB 接続前のタイミング問題だが、`wait_for_db` と healthcheck で吸収している |
+| ログインできない | api コンテナが落ちている | `docker compose logs api`。DB 起動待ちは接続プールのリトライと healthcheck で吸収している |
+| メッセージが届かない（左下が接続中にならない） | WebSocket が中継されていない | `web/nginx.conf` の `Upgrade` ヘッダ設定を確認。EC2 の前に ALB などを挟んだ場合も要注意 |
+| 2 人目のログインで 1 人目が追い出される | 同じブラウザの別タブで試している（localStorage を共有） | 別ブラウザかシークレットウィンドウを使う |
+| 画像が送れない | 5MB 超、または対応形式外 | API 側で 5MB・JPEG/PNG/GIF/WebP に制限している |
 | `port is already allocated` | 前回のコンテナが残っている | `docker compose down` または `docker ps -a` で掃除 |
 
 ### 手順 3
@@ -44,13 +47,17 @@
 |---|---|---|
 | `AccessDenied` / `Unable to locate credentials` | IAM ロール未付与 | ロールを付ける（反映に数十秒） |
 | `BucketAlreadyExists` | バケット名が世界で重複 | 名前に日付や乱数を追加 |
-| S3 の画面で API: NG | `config.js` の IP 間違い、SG の 8000 番未開放、API 停止 | 画面上の「API の接続先」表示で IP を確認 → `config.js` を直して再アップロード → SG → `docker compose ps` |
+| S3 の画面でログインできない | `config.js` の IP 間違い、SG の 8000 番未開放、API 停止 | 開発者ツールのネットワークタブで宛先 IP を確認 → `config.js` を直して再アップロード → SG → `docker compose ps` |
 | S3 で 404 / 真っ白 | フォルダごとアップロードして `index.html` がルートに無い | バケット直下に `index.html` と `assets/` が来るように再アップロード |
 | CORS エラー（開発者ツールに表示） | `CORS_ORIGINS` を絞って S3 の URL と不一致 | `*` に戻すか、`http://` を含めた正確なオリジンを指定 |
 | 403 で `index.html` が出ない | パブリックアクセスブロックが残っている | コンソールで「ブロックパブリックアクセス」を確認 |
 | Mixed Content エラー | S3 を https で開き API が http | S3 は http で開く |
 
 ## 説明で強調したいこと
+
+- **REST と WebSocket の役割分担**: 送信・取得は REST（HTTP）、「届いた」「読んだ」「入力中」の通知は WebSocket。片方だけでは LINE のような体験にならないことを、入力中表示で体感させる
+- **既読の実装はシンプル**: 「誰がどこまで読んだか」を人ごとに 1 つの数字で持つだけ。`SELECT * FROM room_members` を見せると腑に落ちる
+- **状態はどこにあるか**: メッセージ・既読は DB、WebSocket の接続一覧は API のメモリ、画像はボリューム。`docker compose down` と `down -v` で何が消えるかと結びつける
 
 - **コンテナ間の名前解決**: Nginx の `proxy_pass http://api:8000` と API の `DATABASE_URL=...@db:5432` は、Compose がサービス名で DNS を用意しているから通る。`localhost` ではない点を強調
 - **ポート公開の意味**: `ports:` を書いたサービスだけが EC2 の外から見える。`db` は書いていないので外から 5432 で繋げない（= 安全）
@@ -62,9 +69,10 @@
 ## 発展課題（時間が余った受講者向け）
 
 1. `.env` を作って `POSTGRES_PASSWORD` を変え、`docker compose down -v && up -d` で反映されることを確認
-2. `api/app/main.py` に `DELETE /api/messages/{id}` を追加して再ビルド
-3. CloudFront を S3 の前に置いて https 化する
-4. API 側も ECS / App Runner に移してみる（EC2 を無くす）
+2. `web/src/stickers.js` にスタンプパックを 1 つ追加して再ビルド
+3. メッセージへのリアクション（👍 など）を API と画面に追加する
+4. CloudFront を S3 の前に置いて https 化する（WebSocket は `wss://` にする必要があり、API 側も TLS が要る点に気づかせる）
+5. API 側も ECS / App Runner に移してみる（EC2 を無くす。WebSocket の接続一覧がメモリにあるため複数台にすると壊れることを議論する）
 
 ## コスト目安（ap-northeast-1）
 

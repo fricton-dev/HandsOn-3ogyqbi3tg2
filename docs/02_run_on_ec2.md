@@ -3,8 +3,8 @@
 ## ゴール
 
 - 3 つのコンテナ（db / api / web）が起動している
-- ブラウザで `http://<EC2 のパブリック IP>/` を開くと画面が表示され、「API: OK」「データベース: OK」になる
-- 画面からメッセージを追加すると DB に保存される
+- ブラウザで `http://<EC2 のパブリック IP>/` を開くとログイン画面が出て、デモアカウントでログインできる
+- 2 つのアカウントでログインし、メッセージがリアルタイムに届き、既読が付くことを確認する
 
 ## 2-1. 起動する
 
@@ -35,7 +35,7 @@ EC2 の中から疎通を確認します。
 
 ```bash
 curl http://localhost/api/health     # {"status":"ok"}
-curl http://localhost/api/messages   # 初期データ 2 件の JSON
+curl http://localhost/api/info       # db_ok が true なら DB にも繋がっている
 ```
 
 ## 2-3. ブラウザで開く
@@ -48,11 +48,24 @@ http://<EC2 のパブリック IP>/
 
 > ⚠️ `https://` ではなく **`http://`** です。ブラウザが勝手に https に変えることがあるので注意。
 
-画面に次が表示されれば完了です。
+ログイン画面が出たら、「デモアカウントでログイン」の **佐藤 あかり** を押します。
+トーク一覧に「研修グループ」と「鈴木 けんた」が出れば、Web → API → DB の経路が通っています。
 
-- 接続状況: **API サーバー OK**、**データベース OK**
-- メッセージ一覧に「システム」「講師」の 2 件
-- フォームから送信すると一覧に追加され、再読み込みしても残っている
+### 2 人目でログインして、リアルタイムと既読を確かめる
+
+1. **別のブラウザ**（Chrome と Safari など）か**シークレットウィンドウ**で同じ URL を開く
+   （同じブラウザの別タブだとログイン情報を共有してしまうので注意）
+2. **鈴木 けんた** でログインし、「佐藤 あかり」とのトークを開く
+3. あかり側でも「鈴木 けんた」とのトークを開いておく
+4. けんた側で文字を打つと、あかり側に「鈴木 けんた が入力中」と出る
+5. Enter で送信すると、あかり側に即座に吹き出しが出る
+6. あかり側がそのトークを開いていれば、けんた側の吹き出しの横に **既読** が付く
+7. 😊 ボタンでスタンプ、🖼️ ボタンで画像も送ってみる
+8. 自分の吹き出しにマウスを乗せて「⋯」→「送信取消」で取り消すと、相手側も「送信を取り消しました」になる
+9. 「研修グループ」にけんたが投稿し、あかりが開くと「既読 1」、みおも開くと「既読 2」になる
+
+> 💡 この「既読」は、DB の `room_members.last_read_message_id`（誰がどこまで読んだか）を
+> API が WebSocket で全員に配ることで実現しています。
 
 ## 2-4. 中を見てみる（余裕があれば）
 
@@ -62,7 +75,8 @@ docker compose logs -f api
 
 # DB に直接入って SQL を打つ
 docker compose exec db psql -U app -d appdb
-appdb=# SELECT * FROM messages;
+appdb=# SELECT id, room_id, sender_id, type, left(content, 30) FROM messages ORDER BY id DESC LIMIT 10;
+appdb=# SELECT * FROM room_members;     -- 既読位置 (last_read_message_id)
 appdb=# \q
 
 # FastAPI の自動ドキュメント (ブラウザ)
@@ -74,8 +88,9 @@ http://<EC2 のパブリック IP>:8000/docs
 | 症状 | 確認すること |
 |---|---|
 | ブラウザで開けない（タイムアウト） | セキュリティグループで 80 番が開いているか。`http://` になっているか |
-| 画面は出るが「API: NG」 | `docker compose ps` で api が Up か。`docker compose logs api` にエラーが無いか |
-| 「データベース: NG」 | `docker compose logs db`。`docker compose down -v` して作り直す |
+| ログインボタンを押しても反応がない / エラー | `docker compose ps` で api が Up か。`docker compose logs api` にエラーが無いか |
+| ログインはできるがメッセージが届かない | 左下が「● 接続中」になっているか。なっていなければ WebSocket が繋がっていない。`docker compose logs web` を確認 |
+| ログイン画面で「ユーザー名またはパスワードが違います」 | デモアカウントのパスワードは `password`。DB を作り直したい時は `docker compose down -v` |
 | `permission denied while trying to connect to the Docker daemon` | 手順 1 の再ログインをしていない。`exit` して再接続 |
 | `port is already allocated` | 他のコンテナが同じポートを使っている。`docker ps -a` で確認し `docker rm -f <名前>` |
 

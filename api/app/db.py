@@ -1,28 +1,39 @@
-"""PostgreSQL への接続まわり。研修用なので最小限の実装にしている。"""
+"""PostgreSQL 接続プール。"""
 import os
 import time
+from contextlib import contextmanager
 
-import psycopg
+from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL", "postgresql://app:app_password@localhost:5432/appdb"
 )
 
+pool = ConnectionPool(
+    DATABASE_URL, min_size=1, max_size=10, open=False, kwargs={"row_factory": dict_row}
+)
 
-def get_connection() -> psycopg.Connection:
-    """接続を1本返す。呼び出し側で with 文を使って閉じること。"""
-    return psycopg.connect(DATABASE_URL)
 
-
-def wait_for_db(retries: int = 30, interval: float = 1.0) -> None:
-    """DB が起動しきるまで待つ。compose の healthcheck と二重の安全策。"""
-    last_error: Exception | None = None
+def open_pool(retries: int = 30, interval: float = 1.0) -> None:
+    """DB が起動しきるまで待ってプールを開く。"""
+    last: Exception | None = None
     for _ in range(retries):
         try:
-            with get_connection() as conn:
-                conn.execute("SELECT 1")
+            pool.open(wait=True, timeout=5)
             return
         except Exception as e:  # noqa: BLE001
-            last_error = e
+            last = e
             time.sleep(interval)
-    raise RuntimeError(f"DB に接続できませんでした: {last_error}")
+    raise RuntimeError(f"DB に接続できませんでした: {last}")
+
+
+def close_pool() -> None:
+    pool.close()
+
+
+@contextmanager
+def conn():
+    """with db.conn() as c: ... で接続を借りる。ブロックを抜けると自動 commit。"""
+    with pool.connection() as c:
+        yield c
