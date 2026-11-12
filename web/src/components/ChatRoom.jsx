@@ -6,7 +6,7 @@ import StickerPicker from './StickerPicker.jsx'
 import { BackIcon, ImageIcon, SendIcon, SmileIcon } from './Icons.jsx'
 import { dateKey, formatDateLabel } from '../utils.js'
 
-export default function ChatRoom({ me, room, messages, hasMore, typing, onlineIds, onBack, onLoadOlder, onTyping }) {
+export default function ChatRoom({ me, room, messages, hasMore, typing, onlineIds, imagesEnabled = true, onBack, onLoadOlder, onTyping }) {
   const [text, setText] = useState('')
   const [showStickers, setShowStickers] = useState(false)
   const [error, setError] = useState('')
@@ -133,7 +133,8 @@ export default function ChatRoom({ me, room, messages, hasMore, typing, onlineId
 
       <footer className="composer">
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickImage} />
-        <button className="icon-btn" title="画像を送る" onClick={() => fileRef.current?.click()}><ImageIcon width={22} height={22} /></button>
+        <button className="icon-btn" title={imagesEnabled ? '画像を送る' : '共有モードで画像を送るには、設定画面で画像用 S3 バケットを指定してください'}
+          disabled={!imagesEnabled} onClick={() => fileRef.current?.click()}><ImageIcon width={22} height={22} /></button>
         <button className={`icon-btn ${showStickers ? 'active' : ''}`} title="スタンプ" onClick={() => setShowStickers((v) => !v)}><SmileIcon width={22} height={22} /></button>
         <textarea ref={textRef} rows={1} placeholder="メッセージを入力" title="Enter で送信、Shift+Enter で改行"
           value={text} onChange={onChangeText} onKeyDown={onKeyDown} />

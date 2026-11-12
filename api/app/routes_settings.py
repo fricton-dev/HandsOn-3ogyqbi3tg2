@@ -14,6 +14,8 @@ class SettingsIn(BaseModel):
     endpoint_url: str = Field(default="", max_length=255)
     access_key_id: str = Field(default="", max_length=128)
     secret_access_key: str = Field(default="", max_length=128)
+    image_bucket: str = Field(default="", max_length=63)
+    s3_endpoint_url: str = Field(default="", max_length=255)
 
 
 def _merge(body: SettingsIn) -> dict:
@@ -22,7 +24,7 @@ def _merge(body: SettingsIn) -> dict:
     # シークレットが伏せ字のまま送られてきたら既存値を維持
     if body.secret_access_key in ("", "********") and cur.get("secret_access_key"):
         cfg["secret_access_key"] = cur["secret_access_key"] if body.access_key_id == cur.get("access_key_id") else ""
-    for k in ("table", "region", "endpoint_url", "access_key_id", "secret_access_key"):
+    for k in ("table", "region", "endpoint_url", "access_key_id", "secret_access_key", "image_bucket", "s3_endpoint_url"):
         cfg[k] = (cfg.get(k) or "").strip()
     if cfg["mode"] == "dynamodb" and not cfg["table"]:
         raise HTTPException(400, "テーブル名を入力してください")
@@ -30,9 +32,15 @@ def _merge(body: SettingsIn) -> dict:
 
 
 def _test(cfg: dict) -> dict:
+    """ストレージに接続できるか確かめる。共有モードで画像用バケットがあれば、そちらも書き込みを試す。"""
     try:
-        backend = settings.build_backend(cfg)
-        return backend.ping()
+        result = settings.build_backend(cfg).ping()
+        if cfg["mode"] == "dynamodb" and cfg.get("image_bucket"):
+            img = settings.build_images(cfg).ping()
+            result = {**result, "detail": f"{result['detail']} {img['detail']}"}
+        elif cfg["mode"] == "dynamodb":
+            result = {**result, "detail": f"{result['detail']} 画像用 S3 バケットが未設定のため、共有モードでは画像を送れません。"}
+        return result
     except Exception as e:  # noqa: BLE001
         raise HTTPException(400, str(e))
 

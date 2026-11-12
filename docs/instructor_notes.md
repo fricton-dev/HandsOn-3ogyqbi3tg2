@@ -17,10 +17,11 @@
 
 ```bash
 bash scripts/create_dynamodb_table.sh handson-chat ap-northeast-1
+bash scripts/create_image_bucket.sh handson-chat-images ap-northeast-1   # 共有モードの画像置き場 (非公開のまま)
 ```
 
-- 研修生の EC2 に付ける IAM ロールに `docs/iam_dynamodb_policy.json` の内容を追加する（Resource をテーブルの ARN に）
-- 研修生に伝えるもの: テーブル名とリージョン
+- 研修生の EC2 に付ける IAM ロールに `docs/iam_dynamodb_policy.json` の内容を追加する（Resource をテーブルの ARN とバケット名に）
+- 研修生に伝えるもの: テーブル名、リージョン、画像用バケット名
 - 研修当日の開始前にテーブルを空にしたい場合は、削除して作り直すのが早い（`aws dynamodb delete-table --table-name handson-chat`）
 - 講師自身も先に 1 アカウント作り、「全員」グループを作っておくと誘導しやすい
 
@@ -74,12 +75,16 @@ bash scripts/create_dynamodb_table.sh handson-chat ap-northeast-1
 | 「テーブルが見つかりません」 | 名前かリージョンの入力ミス | 講師が伝えた値と突き合わせる |
 | 新規登録で「既に使われています」 | 他の研修生と同じユーザー名 | 名前に自分の識別子を入れる |
 | 相手のメッセージが出るまで数秒かかる | 仕様（ポーリング 2.5 秒） | 「なぜ即時でないのか」を説明する好機 |
+| 画像ボタンが押せない / 「画像用 S3 バケットを指定してください」 | 設定画面でバケット名が空 | バケット名を入れて保存し直す |
+| 接続テストで「S3 バケットが見つかりません」「権限」 | バケット名違い / ロールに s3:PutObject 等が無い | `iam_dynamodb_policy.json` の SharedChatImages を確認 |
+| 共有モードの画像が壊れて表示される | 送信側の EC2 だけバケット未設定で、ローカルのパスが保存された | 送信側で設定を直してから送り直す |
 | 入力中 / オンラインが出ない | 仕様（WebSocket は同じ EC2 内のみ） | 同上 |
 
 ## 説明で強調したいこと
 
 - **パーティションキーの選び方**: 「このルームの最新 N 件」が最頻のアクセスだからルーム ID を PK に、ソートキーに時刻順の ULID を置く。ユーザー ID や日付を PK にすると何が困るかを問いかける
 - **シングルテーブル設計**: 1 テーブルにユーザー・ルーム・メッセージが同居している。コンソールの「項目を探索」で `pk` の種類を見せる
+- **メタデータは DynamoDB、実ファイルは S3**: ローカルモードでは画像が各 EC2 のディスクに取り残されて他の人に見えない。共有モードでは S3 に置き、API が取り出して返すのでバケットは非公開のまま。「状態はどこにあるか」の話とつなげる
 - **WebSocket の限界とポーリング**: API のメモリにある接続一覧は EC2 をまたげない。共有モードがポーリングになっている理由と、本番での選択肢（API Gateway WebSocket / DynamoDB Streams）
 
 - **REST と WebSocket の役割分担**: 送信・取得は REST（HTTP）、「届いた」「読んだ」「入力中」の通知は WebSocket。片方だけでは LINE のような体験にならないことを、入力中表示で体感させる

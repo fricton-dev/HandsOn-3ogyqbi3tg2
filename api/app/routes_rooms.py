@@ -3,9 +3,11 @@ import os
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import auth, settings
+from .images_s3 import valid_key
 from .storage_base import NotFoundError
 from .ws import manager
 
@@ -98,13 +100,45 @@ def send_image(room_id: str, file: UploadFile = File(...), me: dict = Depends(au
     data = file.file.read(MAX_IMAGE_BYTES + 1)
     if len(data) > MAX_IMAGE_BYTES:
         raise HTTPException(413, "画像は 5MB までです")
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    name = f"{uuid.uuid4().hex}{ext}"
-    with open(os.path.join(UPLOAD_DIR, name), "wb") as f:
-        f.write(data)
-    msg = st.insert_message(room_id, me, "image", f"/uploads/{name}")
+    if settings.current()["mode"] == "dynamodb":
+        # 共有モード: 他の EC2 からも見えるように S3 へ。メッセージには API 経由で取り出すパスを入れる
+        s3 = settings.images()
+        if s3 is None:
+            raise HTTPException(400, "共有モードで画像を送るには、設定画面で画像用 S3 バケットを指定してください")
+        try:
+            key = s3.put(room_id, ext, data, file.content_type)
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
+        content = f"/api/images/{key}"
+    else:
+        # ローカルモード: この EC2 のボリュームに保存し、Nginx / StaticFiles で配る
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        name = f"{uuid.uuid4().hex}{ext}"
+        with open(os.path.join(UPLOAD_DIR, name), "wb") as f:
+            f.write(data)
+        content = f"/uploads/{name}"
+    msg = st.insert_message(room_id, me, "image", content)
     _broadcast_message(st, msg)
     return msg
+
+
+@router.get("/images/{key:path}")
+def get_image(key: str):
+    """共有モードの画像を S3 から取り出して返す。バケットを公開しなくて済むように API が中継する。"""
+    s3 = settings.images()
+    if s3 is None or not valid_key(key):
+        raise HTTPException(404, "画像が見つかりません")
+    try:
+        found = s3.get(key)
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    if not found:
+        raise HTTPException(404, "画像が見つかりません")
+    body, content_type, size = found
+    headers = {"Cache-Control": "public, max-age=31536000, immutable"}
+    if size:
+        headers["Content-Length"] = str(size)
+    return StreamingResponse(body.iter_chunks(64 * 1024), media_type=content_type, headers=headers)
 
 
 @router.post("/rooms/{room_id}/read")
