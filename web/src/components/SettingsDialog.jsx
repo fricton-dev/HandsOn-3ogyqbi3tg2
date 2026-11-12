@@ -6,7 +6,7 @@ const REGIONS = ['ap-northeast-1', 'ap-northeast-3', 'us-east-1', 'us-west-2', '
 
 // 履歴の保存先 (この環境の PostgreSQL / 共有 DynamoDB) を切り替える
 export default function SettingsDialog({ onClose, onSaved }) {
-  const [form, setForm] = useState({ mode: 'postgres', table: '', region: 'ap-northeast-1', endpoint_url: '', access_key_id: '', secret_access_key: '', image_bucket: '', s3_endpoint_url: '' })
+  const [form, setForm] = useState({ mode: 'postgres', table: '', region: 'ap-northeast-1', endpoint_url: '', access_key_id: '', secret_access_key: '' })
   const [loaded, setLoaded] = useState(false)
   const [advanced, setAdvanced] = useState(false)
   const [busy, setBusy] = useState('')
@@ -15,9 +15,8 @@ export default function SettingsDialog({ onClose, onSaved }) {
   useEffect(() => {
     api.settings().then((s) => {
       setForm({ mode: s.mode, table: s.table || '', region: s.region || 'ap-northeast-1', endpoint_url: s.endpoint_url || '',
-        access_key_id: s.access_key_id || '', secret_access_key: s.has_secret ? '********' : '',
-        image_bucket: s.image_bucket || '', s3_endpoint_url: s.s3_endpoint_url || '' })
-      setAdvanced(!!(s.endpoint_url || s.access_key_id || s.s3_endpoint_url))
+        access_key_id: s.access_key_id || '', secret_access_key: s.has_secret ? '********' : '' })
+      setAdvanced(!!(s.endpoint_url || s.access_key_id))
       setLoaded(true)
     }).catch((e) => setResult({ ok: false, text: e.message }))
   }, [])
@@ -81,13 +80,6 @@ export default function SettingsDialog({ onClose, onSaved }) {
               <input list="regions" value={form.region} onChange={set('region')} />
               <datalist id="regions">{REGIONS.map((r) => <option key={r} value={r} />)}</datalist>
             </label>
-            <label>画像用 S3 バケット
-              <input value={form.image_bucket} onChange={set('image_bucket')} placeholder="handson-chat-images" />
-            </label>
-            <p className="hint">
-              共有モードの画像はこのバケットに保存され、どの EC2 からも見られます。空欄のままだと共有モードでは画像を送れません。
-              テーブルと同じリージョンにあるものを指定してください。
-            </p>
             <p className="hint">
               認証情報は EC2 に付けた IAM ロールを使います。ロールを付けられない場合だけ、詳細設定でアクセスキーを入力してください。
             </p>
@@ -102,11 +94,8 @@ export default function SettingsDialog({ onClose, onSaved }) {
                 <label>シークレットアクセスキー
                   <input type="password" value={form.secret_access_key} onChange={set('secret_access_key')} autoComplete="new-password" />
                 </label>
-                <label>DynamoDB エンドポイント URL
+                <label>エンドポイント URL
                   <input value={form.endpoint_url} onChange={set('endpoint_url')} placeholder="通常は空欄" />
-                </label>
-                <label>S3 エンドポイント URL
-                  <input value={form.s3_endpoint_url} onChange={set('s3_endpoint_url')} placeholder="通常は空欄" />
                 </label>
                 <p className="hint">アクセスキーはこの EC2 のデータベースに平文で保存されます。研修中の一時的な利用に限ってください。</p>
               </div>

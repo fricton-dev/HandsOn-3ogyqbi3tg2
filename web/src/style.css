@@ -197,4 +197,3 @@ code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: .9e
 .settings-actions .primary { flex: 2; }
 .secondary { flex: 1; border: 1px solid var(--border); background: #fff; color: var(--text); font-weight: 600; padding: 11px; border-radius: 10px; }
 .secondary:disabled { color: #9ca3af; cursor: default; }
-.icon-btn:disabled { color: #c4c9d0; cursor: default; background: none; }

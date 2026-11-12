@@ -15,7 +15,7 @@ export default function App() {
   const [typingByRoom, setTypingByRoom] = useState({})       // roomId -> { user, until }
   const [onlineIds, setOnlineIds] = useState([])
   const [wsStatus, setWsStatus] = useState('offline')
-  const [storage, setStorage] = useState({ mode: 'postgres', table: '', region: '', image_bucket: '' })
+  const [storage, setStorage] = useState({ mode: 'postgres', table: '', region: '' })
   const wsRef = useRef(null)
   const currentRoomRef = useRef(null)
   currentRoomRef.current = currentRoomId
@@ -271,7 +271,6 @@ export default function App() {
           messages={messagesByRoom[currentRoom.id]?.list || []}
           hasMore={!!messagesByRoom[currentRoom.id]?.hasMore}
           typing={typingByRoom[currentRoom.id]}
-          imagesEnabled={storage.mode !== 'dynamodb' || !!storage.image_bucket}
           onBack={() => setCurrentRoomId(null)}
           onLoadOlder={() => loadOlder(currentRoom.id)}
           onTyping={() => sendTyping(currentRoom.id)}
