@@ -24,12 +24,12 @@ import os
 import socket
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
-from . import auth, db, images, routes_auth, routes_rooms, routes_settings, settings
+from . import auth, db, routes_auth, routes_rooms, routes_settings, settings
 from .ws import manager
 
 UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/app/uploads")
@@ -56,18 +56,7 @@ app.add_middleware(CORSMiddleware, allow_origins=_origins, allow_methods=["*"], 
 app.include_router(routes_auth.router)
 app.include_router(routes_rooms.router)
 app.include_router(routes_settings.router)
-
-
-@app.get("/uploads/{name}")
-def uploaded_image(name: str):
-    """送信画像。この EC2 に保存されていればそれを返し、無ければ S3 の署名付き URL へ転送する。"""
-    path = images.local_path(name)
-    if path:
-        return FileResponse(path, headers={"Cache-Control": "public, max-age=86400"})
-    url = images.presigned_url(name)
-    if url:
-        return RedirectResponse(url, status_code=302)
-    raise HTTPException(404, "画像が見つかりません")
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR, check_dir=False), name="uploads")
 
 
 @app.get("/api/health")
@@ -88,7 +77,6 @@ def info():
         out["storage"] = settings.active().info()
     except Exception as e:  # noqa: BLE001
         out["storage"] = {"error": str(e)}
-    out["images"] = images.info()
     return out
 
 

@@ -17,11 +17,11 @@
 
 ```bash
 bash scripts/create_dynamodb_table.sh handson-chat ap-northeast-1
-bash scripts/create_image_bucket.sh handson-chat-images ap-northeast-1   # 共有モードの画像置き場 (非公開のまま)
+bash scripts/create_image_bucket.sh                                      # 共有モードの画像置き場 (非公開のまま)。EC2 ロールに権限も付ける
 ```
 
-- 研修生の EC2 に付ける IAM ロールに `docs/iam_dynamodb_policy.json` の内容を追加する（Resource をテーブルの ARN とバケット名に）
-- 研修生に伝えるもの: テーブル名、リージョン、画像用バケット名
+- 研修生の EC2 に付ける IAM ロールに `docs/iam_dynamodb_policy.json`（Resource をテーブルの ARN に）と `docs/iam_s3_images_policy.json`（バケット名を置換）の内容を追加する。後者は `create_image_bucket.sh` が付ける
+- 研修生に伝えるもの: テーブル名とリージョン。画像用バケットは `docker-compose.yml` の `IMAGE_BUCKET` の既定値と同じ名前で作れば設定画面に最初から入る
 - 研修当日の開始前にテーブルを空にしたい場合は、削除して作り直すのが早い（`aws dynamodb delete-table --table-name handson-chat`）
 - 講師自身も先に 1 アカウント作り、「全員」グループを作っておくと誘導しやすい
 
@@ -76,7 +76,7 @@ bash scripts/create_image_bucket.sh handson-chat-images ap-northeast-1   # 共�
 | 新規登録で「既に使われています」 | 他の研修生と同じユーザー名 | 名前に自分の識別子を入れる |
 | 相手のメッセージが出るまで数秒かかる | 仕様（ポーリング 2.5 秒） | 「なぜ即時でないのか」を説明する好機 |
 | 画像ボタンが押せない / 「画像用 S3 バケットを指定してください」 | 設定画面でバケット名が空 | バケット名を入れて保存し直す |
-| 接続テストで「S3 バケットが見つかりません」「権限」 | バケット名違い / ロールに s3:PutObject 等が無い | `iam_dynamodb_policy.json` の SharedChatImages を確認 |
+| 接続テストで「S3 バケットが見つかりません」「権限」 | バケット名違い / ロールに s3:PutObject 等が無い | `iam_s3_images_policy.json` の内容がロールに付いているか確認 |
 | 共有モードの画像が壊れて表示される | 送信側の EC2 だけバケット未設定で、ローカルのパスが保存された | 送信側で設定を直してから送り直す |
 | 入力中 / オンラインが出ない | 仕様（WebSocket は同じ EC2 内のみ） | 同上 |
 

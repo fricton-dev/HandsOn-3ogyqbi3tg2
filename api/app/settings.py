@@ -3,6 +3,7 @@
 設定自体はローカルの PostgreSQL (app_settings テーブル) に保存する。
 共有モード (DynamoDB) でもこの EC2 の設定は PostgreSQL に残るので、いつでも戻せる。
 """
+import os
 import threading
 
 from . import db
@@ -17,7 +18,9 @@ DEFAULTS = {
     "endpoint_url": "",          # 通常は空。DynamoDB Local で検証する時だけ使う
     "access_key_id": "",
     "secret_access_key": "",
-    "image_bucket": "",          # 共有モードで画像を置く S3 バケット (空なら共有モードでは画像を送れない)
+    # 共有モードで画像を置く S3 バケット。既定値は docker-compose の IMAGE_BUCKET。設定画面で上書きできる。
+    # 空なら共有モードでは画像を送れない。
+    "image_bucket": os.environ.get("IMAGE_BUCKET", "").strip(),
     "s3_endpoint_url": "",       # 通常は空。MinIO など S3 互換環境で検証する時だけ使う
 }
 _lock = threading.Lock()

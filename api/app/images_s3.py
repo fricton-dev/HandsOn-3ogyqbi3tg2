@@ -53,9 +53,12 @@ class S3Images:
         key = f"{PREFIX}_probe/{uuid.uuid4().hex}"
         try:
             self.client.put_object(Bucket=self.bucket, Key=key, Body=b"probe", ContentType="text/plain")
-            self.client.delete_object(Bucket=self.bucket, Key=key)
         except Exception as e:  # noqa: BLE001
             raise self._wrap(e) from e
+        try:
+            self.client.delete_object(Bucket=self.bucket, Key=key)
+        except Exception:  # noqa: BLE001
+            pass  # DeleteObject が許可されていないロールでも接続テスト自体は成功にする
         return {"ok": True, "detail": f"画像用 S3 バケット '{self.bucket}' に書き込めました。"}
 
     def put(self, room_id: str, ext: str, data: bytes, content_type: str) -> str:

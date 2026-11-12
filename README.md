@@ -33,7 +33,7 @@ EC2（Ubuntu）上で Docker Compose を使って 3 層のチャットアプリ�
 | 共有 | 講師が用意した DynamoDB テーブル（全員共通）。画像は共通の S3 バケット | 研修後半。全員でチャット | 同じ EC2 内は WebSocket、他の EC2 の書き込みは 2.5 秒ごとのポーリング |
 
 切り替えはアプリ左下の設定（歯車のアイコン）から行い、設定は自分の EC2 の PostgreSQL（`app_settings`）に保存されます。
-講師は [scripts/create_dynamodb_table.sh](scripts/create_dynamodb_table.sh) でテーブルを、[scripts/create_image_bucket.sh](scripts/create_image_bucket.sh) で画像用バケットを作り、研修生の EC2 の IAM ロールに [docs/iam_dynamodb_policy.json](docs/iam_dynamodb_policy.json) を付けます。
+講師は [scripts/create_dynamodb_table.sh](scripts/create_dynamodb_table.sh) でテーブルを、[scripts/create_image_bucket.sh](scripts/create_image_bucket.sh) で画像用バケットを作り、研修生の EC2 の IAM ロールに [docs/iam_dynamodb_policy.json](docs/iam_dynamodb_policy.json) と [docs/iam_s3_images_policy.json](docs/iam_s3_images_policy.json) を付けます。
 テーブル設計は [docs/04_shared_chat_dynamodb.md](docs/04_shared_chat_dynamodb.md) を参照してください。
 
 ## 構成

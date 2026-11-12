@@ -1,4 +1,5 @@
 """トークルーム・メッセージ・既読・送信取消・画像アップロード。"""
+import os
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -12,6 +13,7 @@ from .ws import manager
 
 router = APIRouter(prefix="/api")
 
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/app/uploads")
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 ALLOWED_IMAGE = {"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"}
 

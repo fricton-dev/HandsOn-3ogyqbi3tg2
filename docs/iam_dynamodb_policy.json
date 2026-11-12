@@ -15,16 +15,6 @@
         "dynamodb:Query"
       ],
       "Resource": "arn:aws:dynamodb:ap-northeast-1:<アカウントID>:table/handson-chat"
-    },
-    {
-      "Sid": "SharedChatImages",
-      "Effect": "Allow",
-      "Action": [
-        "s3:PutObject",
-        "s3:GetObject",
-        "s3:DeleteObject"
-      ],
-      "Resource": "arn:aws:s3:::handson-chat-images/*"
     }
   ]
 }
