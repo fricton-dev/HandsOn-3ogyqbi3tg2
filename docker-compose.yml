@@ -33,6 +33,10 @@ services:
       # S3 からアクセスする場合に必要。カンマ区切りで複数指定可。研修用に既定は "*"
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
       UPLOAD_DIR: /app/uploads
+      # 共有 DynamoDB モードで送った画像の保存先 (S3)。全員の EC2 から同じ画像が見えるようにする。
+      # ローカル (PostgreSQL) モードでは使わず、これまでどおり api-uploads ボリュームに保存する。
+      IMAGE_BUCKET: ${IMAGE_BUCKET:-handson-chat-images-255103685154}
+      IMAGE_BUCKET_REGION: ${IMAGE_BUCKET_REGION:-ap-northeast-1}
     volumes:
       - api-uploads:/app/uploads        # 送信した画像の保存先
     ports:
