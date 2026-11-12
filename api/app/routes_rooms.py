@@ -1,17 +1,15 @@
 """トークルーム・メッセージ・既読・送信取消・画像アップロード。"""
-import os
 import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-from . import auth, settings
+from . import auth, images, settings
 from .storage_base import NotFoundError
 from .ws import manager
 
 router = APIRouter(prefix="/api")
 
-UPLOAD_DIR = os.environ.get("UPLOAD_DIR", "/app/uploads")
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 ALLOWED_IMAGE = {"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"}
 
@@ -98,11 +96,12 @@ def send_image(room_id: str, file: UploadFile = File(...), me: dict = Depends(au
     data = file.file.read(MAX_IMAGE_BYTES + 1)
     if len(data) > MAX_IMAGE_BYTES:
         raise HTTPException(413, "画像は 5MB までです")
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
     name = f"{uuid.uuid4().hex}{ext}"
-    with open(os.path.join(UPLOAD_DIR, name), "wb") as f:
-        f.write(data)
-    msg = st.insert_message(room_id, me, "image", f"/uploads/{name}")
+    try:
+        path = images.save(name, data)   # 共有モードなら S3、ローカルモードなら EC2 のボリューム
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"画像の保存に失敗しました: {e}")
+    msg = st.insert_message(room_id, me, "image", path)
     _broadcast_message(st, msg)
     return msg
 
